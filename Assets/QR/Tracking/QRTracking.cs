@@ -1,9 +1,11 @@
 using Meta.XR;
+using NUnit.Framework;
 using PassthroughCameraSamples;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ZXing;
+using UnityEngine.Assertions;
 
 public class QRTracking : MonoBehaviour
 {
@@ -15,17 +17,15 @@ public class QRTracking : MonoBehaviour
     [SerializeField] private EnvironmentRayCastSampleManager environmentRayCastSampleManager;
 
     private WebCamTexture texture;
-    private GameObject[] cornerPoints = new GameObject[4];
+    private GameObject markerPrefab;
+    private Vector3[] cornerPoints = new Vector3[3];
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        cameraPermissions.AskCameraPermissions(); 
-        for (int i = 0; i < cornerPoints.Length; i++)
-        {
-            cornerPoints[i] = Instantiate(prefab, Vector3.zero, Quaternion.identity);
-            cornerPoints[i].SetActive(false);
-        }
+        cameraPermissions.AskCameraPermissions();
+        markerPrefab = Instantiate(prefab, Vector3.zero, Quaternion.identity);
+        markerPrefab.SetActive(false);
     }
 
     // Update is called once per frame
@@ -40,8 +40,8 @@ public class QRTracking : MonoBehaviour
             return;
         }
 
-        texture = webCamTextureManager.WebCamTexture;  
-        if (uiImage != null) uiImage.texture = texture; 
+        texture = webCamTextureManager.WebCamTexture;
+        if (uiImage != null) uiImage.texture = texture;
 
         var barcodeReader = new BarcodeReaderGeneric { AutoRotate = false, Options = new ZXing.Common.DecodingOptions { TryHarder = false } };
         var luminanceSource = new Color32LuminanceSource(texture.GetPixels32(), texture.width, texture.height);
@@ -49,31 +49,76 @@ public class QRTracking : MonoBehaviour
         if (result != null)
         {
             if (uiText != null) uiText.text = $"QR Code detected: {result.Text}";
+
+            Vector3[] positions = new Vector3[result.ResultPoints.Length];
+            Vector3[] normals = new Vector3[result.ResultPoints.Length];
             for (int i = 0; i < result.ResultPoints.Length; i++)
             {
                 var point = result.ResultPoints[i];
                 var ray = PassthroughCameraUtils.ScreenPointToRayInWorld(webCamTextureManager.Eye, new Vector2Int((int)point.X, (int)point.Y));
-                Vector3? position = environmentRayCastSampleManager.PlaceGameObjectByScreenPos(ray);
-                if (position != null)
-                {
-                    cornerPoints[i].SetActive(true);
-                    cornerPoints[i].transform.SetPositionAndRotation(position.Value, Quaternion.LookRotation(ray.direction));
-                }
-                else
-                {
-                    if (uiText != null) uiText.text = $"Error with depth API, 2d Pos: {point.X}, {point.Y}";
-                    cornerPoints[i].SetActive(false);
-                }
+                (Vector3? position, Vector3? normal) = environmentRayCastSampleManager.PlaceGameObjectByScreenPosAndRot(ray);
+                UnityEngine.Assertions.Assert.IsTrue(position != null, $"Position is null for point {i}");
+                UnityEngine.Assertions.Assert.IsTrue(normal != null, $"Normal is null for point {i}");
+                positions[i] = position.Value;
+                normals[i] = normal.Value;
             }
+
+            // set the position of the prefab to the center of the points
+            Vector3 center = Vector3.zero;
+            for (int i = 0; i < positions.Length; i++)
+            {
+                center += positions[i];
+            }
+            center /= positions.Length;
+            markerPrefab.transform.position = center;
+
+            // 1. set the normal of the markerPrefab to the normal of plane defined by the points
+
+            cornerPoints[0] = positions[getIndexWithMinDistance(positions, positions[0])];
+            cornerPoints[1] = positions[getIndexWithMinDistance(positions, positions[1])];
+            cornerPoints[2] = positions[getIndexWithMinDistance(positions, positions[2])];
+            Vector3 ab = cornerPoints[1] - cornerPoints[0];
+            Vector3 ac = cornerPoints[2] - cornerPoints[0];
+            Vector3 planeNormal = Vector3.Cross(ab, ac).normalized;
+            markerPrefab.transform.rotation = Quaternion.FromToRotation(transform.up, planeNormal) * transform.rotation;
+
+            // 2. set the normals of the prefab to the average normals of the points
+            // Vector3 averageNormal = Vector3.zero;
+            // for (int i = 0; i < normals.Length; i++)
+            // {
+            //     averageNormal += normals[i];
+            // }
+            // averageNormal /= normals.Length;
+            // markerPrefab.transform.rotation = Quaternion.FromToRotation(transform.up, averageNormal) * transform.rotation;
+
+
+            markerPrefab.SetActive(true);
         }
         else
         {
             if (uiText != null) uiText.text = "No QR Code detected";
         }
     }
+    
+    private int getIndexWithMinDistance(Vector3[] points, Vector3 point)
+    {
+        int index = 0;
+        float minDistance = float.MaxValue;
+        for (int i = 0; i < points.Length; i++)
+        {
+            float distance = Vector3.Distance(points[i], point);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                index = i;
+            }
+        }
+        return index;
+    }   
 }
 
  public class Color32LuminanceSource : BaseLuminanceSource
+
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Color32LuminanceSource"/> class.

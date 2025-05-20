@@ -181,6 +181,55 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2086260931}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &61399724
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 61399726}
+  - component: {fileID: 61399725}
+  m_Layer: 0
+  m_Name: EnvironmentDepthManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &61399725
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 61399724}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71a155ece80369d4e99bdaf5e59169b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _occlusionShadersMode: 2
+  _removeHands: 0
+  CustomTrackingSpace: {fileID: 0}
+  <MaskMeshFilters>k__BackingField: []
+  _cameraRig: {fileID: 551160909}
+--- !u!4 &61399726
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 61399724}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 91.734375, y: -97.58097, z: 1396.3485}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &107467859
 GameObject:
   m_ObjectHideFlags: 0
@@ -1138,7 +1187,7 @@ MonoBehaviour:
   cameraPermissions: {fileID: 2059223538}
   uiText: {fileID: 2107315393}
   uiImage: {fileID: 442534866}
-  prefab: {fileID: 2594896083726324977, guid: 8e8338965ff8cf24297d8f12fc26d327, type: 3}
+  prefab: {fileID: 7190559763459483146, guid: cec25213e5ba74da1ae7d3e2036e000d, type: 3}
   environmentRayCastSampleManager: {fileID: 1254362824}
 --- !u!114 &1241364536 stripped
 MonoBehaviour:
@@ -2017,3 +2066,4 @@ SceneRoots:
   - {fileID: 1241364537}
   - {fileID: 716919794}
   - {fileID: 474051060}
+  - {fileID: 61399726}
