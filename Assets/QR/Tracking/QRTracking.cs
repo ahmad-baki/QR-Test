@@ -53,7 +53,7 @@ public class QRTracking : MonoBehaviour
             {
                 var point = result.ResultPoints[i];
                 var ray = PassthroughCameraUtils.ScreenPointToRayInWorld(webCamTextureManager.Eye, new Vector2Int((int)point.X, (int)point.Y));
-                Vector3? position = null;//environmentRayCastSampleManager.PlaceGameObjectByScreenPos(ray);
+                Vector3? position = environmentRayCastSampleManager.PlaceGameObjectByScreenPos(ray);
                 if (position != null)
                 {
                     cornerPoints[i].SetActive(true);
@@ -61,7 +61,7 @@ public class QRTracking : MonoBehaviour
                 }
                 else
                 {
-                    if (uiText != null) uiText.text = "Error with depth API";
+                    if (uiText != null) uiText.text = $"Error with depth API, 2d Pos: {point.X}, {point.Y}";
                     cornerPoints[i].SetActive(false);
                 }
             }
