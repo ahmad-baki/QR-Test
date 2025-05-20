@@ -1,57 +1,45 @@
-using Meta.XR;
-using NUnit.Framework;
 using PassthroughCameraSamples;
-using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using ZXing;
-using UnityEngine.Assertions;
 
 public class QRTracking : MonoBehaviour
 {
+    [SerializeField] private bool startTrackingOnStart = true;
     [SerializeField] private WebCamTextureManager webCamTextureManager;
     [SerializeField] private PassthroughCameraPermissions cameraPermissions;
-    [SerializeField] private TMP_Text uiText;
-    [SerializeField] private RawImage uiImage;
     [SerializeField] private GameObject prefab;
     [SerializeField] private EnvironmentRayCastSampleManager environmentRayCastSampleManager;
 
     private WebCamTexture texture;
-    private GameObject markerPrefab;
+    private GameObject markerGO;
     private Vector3[] cornerPoints = new Vector3[3];
+    private bool tracking;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        cameraPermissions.AskCameraPermissions();
-        markerPrefab = Instantiate(prefab, Vector3.zero, Quaternion.identity);
-        markerPrefab.SetActive(false);
+        if(startTrackingOnStart)
+        {
+            StartTracking();
+        }
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (webCamTextureManager.WebCamTexture == null)
-        {
-
-            if (uiText == null) return;
-            if (PassthroughCameraPermissions.HasCameraPermission == false) uiText.text = "Camera permission not granted";
-            else uiText.text = "Texture is null";
-            return;
-        }
+        if (!tracking || webCamTextureManager.WebCamTexture == null) return;
 
         texture = webCamTextureManager.WebCamTexture;
-        if (uiImage != null) uiImage.texture = texture;
-
         var barcodeReader = new BarcodeReaderGeneric { AutoRotate = false, Options = new ZXing.Common.DecodingOptions { TryHarder = false } };
         var luminanceSource = new Color32LuminanceSource(texture.GetPixels32(), texture.width, texture.height);
         var result = barcodeReader.Decode(luminanceSource);
         if (result != null)
         {
-            if (uiText != null) uiText.text = $"QR Code detected: {result.Text}";
+            Debug.Log($"QR Code detected: {result.Text}");
 
             Vector3[] positions = new Vector3[result.ResultPoints.Length];
             Vector3[] normals = new Vector3[result.ResultPoints.Length];
+            // the order is: bottom-left, top-left, top-right
             for (int i = 0; i < result.ResultPoints.Length; i++)
             {
                 var point = result.ResultPoints[i];
@@ -70,36 +58,51 @@ public class QRTracking : MonoBehaviour
                 center += positions[i];
             }
             center /= positions.Length;
-            markerPrefab.transform.position = center;
+            markerGO.transform.position = center;
 
-            // 1. set the normal of the markerPrefab to the normal of plane defined by the points
+            // 1. set the normal of the markerGO to the normal of plane defined by the points
+            // cornerPoints[0] = positions[getIndexWithMinDistance(positions, positions[0])];
+            // cornerPoints[1] = positions[getIndexWithMinDistance(positions, positions[1])];
+            // cornerPoints[2] = positions[getIndexWithMinDistance(positions, positions[2])];
+            // Vector3 ab = cornerPoints[1] - cornerPoints[0];
+            // Vector3 ac = cornerPoints[2] - cornerPoints[0];
+            // Vector3 planeNormal = Vector3.Cross(ab, ac).normalized;
+            // markerGO.transform.rotation = Quaternion.FromToRotation(transform.up, planeNormal) * transform.rotation;
 
-            cornerPoints[0] = positions[getIndexWithMinDistance(positions, positions[0])];
-            cornerPoints[1] = positions[getIndexWithMinDistance(positions, positions[1])];
-            cornerPoints[2] = positions[getIndexWithMinDistance(positions, positions[2])];
-            Vector3 ab = cornerPoints[1] - cornerPoints[0];
-            Vector3 ac = cornerPoints[2] - cornerPoints[0];
-            Vector3 planeNormal = Vector3.Cross(ab, ac).normalized;
-            markerPrefab.transform.rotation = Quaternion.FromToRotation(transform.up, planeNormal) * transform.rotation;
-
-            // 2. set the normals of the prefab to the average normals of the points
+            // 2. set the normals of the markerGO to the average normals of the points
             // Vector3 averageNormal = Vector3.zero;
             // for (int i = 0; i < normals.Length; i++)
             // {
             //     averageNormal += normals[i];
             // }
             // averageNormal /= normals.Length;
-            // markerPrefab.transform.rotation = Quaternion.FromToRotation(transform.up, averageNormal) * transform.rotation;
+            // markerGO.transform.rotation = Quaternion.FromToRotation(transform.up, averageNormal) * transform.rotation;
 
+            // 3. set forward-direction (z-direction) of the markerGO to the vector from top-left to bottom-left
+            markerGO.transform.rotation = Quaternion.LookRotation(positions[1] - positions[0]);
 
-            markerPrefab.SetActive(true);
+            markerGO.SetActive(true);
         }
         else
         {
-            if (uiText != null) uiText.text = "No QR Code detected";
+            Debug.Log("No QR Code detected");
         }
     }
     
+    public void StartTracking()
+    {
+        if(PassthroughCameraPermissions.HasCameraPermission != true) cameraPermissions.AskCameraPermissions();
+        markerGO = Instantiate(prefab, Vector3.zero, Quaternion.identity);
+        markerGO.SetActive(false);
+        tracking = true;
+    }
+
+    public void StopTracking()
+    {
+        tracking = false;
+        Destroy(markerGO);
+    }
+
     private int getIndexWithMinDistance(Vector3[] points, Vector3 point)
     {
         int index = 0;
@@ -150,10 +153,8 @@ public class QRTracking : MonoBehaviour
         {
             var z = 0;
 
-            for (var y = Height - 1; y >= 0; y--)
+            for (var y = 0; y < Height; y++)
             {
-                // This is flipped vertically because the Color32 array from Unity is reversed vertically,
-                // it means that the top most row of the image would be the bottom most in the array.
                 for (var x = 0; x < Width; x++)
                 {
                     var color32 = color32s[y * Width + x];
